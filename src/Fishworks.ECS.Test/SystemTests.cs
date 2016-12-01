@@ -24,7 +24,7 @@ namespace Fishworks.ECS.Test
     {
       TestSystem testSystem = new TestSystem(new World());
 
-      Assert.AreEqual(testSystem.InterestedIn(new Type[] { typeof(TestComponent1), typeof(int) }), false);
+      Assert.AreEqual(testSystem.InterestedIn(new Type[] { typeof(TestComponent1), typeof(TestComponent3) }), false);
     }
 
     [TestMethod]
@@ -51,6 +51,11 @@ namespace Fishworks.ECS.Test
     }
   }
 
+  public class TestComponent3 : IComponent
+  {
+    
+  }
+
   public class TestSystem : BaseSystem
   {
     public TestSystem(World world) : base(world, new Type[] { typeof(TestComponent1), typeof(TestComponent2) })
@@ -64,7 +69,7 @@ namespace Fishworks.ECS.Test
       int i = 1;
       foreach (var componentType in componentTypes)
       {
-        bitmask |= componentType.GetComponentBitmask();
+        bitmask |= World.GetComponentBitmask(componentType);
         i++;
       }
 
