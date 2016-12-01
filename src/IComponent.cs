@@ -1,8 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Fishworks.ECS
 {
@@ -12,18 +9,18 @@ namespace Fishworks.ECS
 
   internal static class ComponentExtensions
   {
-    private static Dictionary<Type, int> bitmasks = new Dictionary<Type, int>();
-    private static int componentIndex = 1;
+    private static readonly Dictionary<Type, int> Bitmasks = new Dictionary<Type, int>();
+    private static int _componentIndex = 1;
 
     internal static int GetComponentBitmask(this Type type)
     {
-      if (bitmasks.ContainsKey(type))
-        return bitmasks[type];
+      if (Bitmasks.ContainsKey(type))
+        return Bitmasks[type];
 
-      int bitmask = 1 << componentIndex;
-      bitmasks.Add(type, bitmask);
+      int bitmask = 1 << _componentIndex;
+      Bitmasks.Add(type, bitmask);
 
-      componentIndex++;
+      _componentIndex++;
       return bitmask;
     }
   }

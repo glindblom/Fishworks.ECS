@@ -21,7 +21,7 @@ namespace Fishworks.ECS.Test
           .AddToWorld();
       }
 
-      Assert.AreEqual(1000, world.EntityCount);
+      Assert.AreEqual(1000, world.EntityTableSize);
     }
 
     [TestMethod]
