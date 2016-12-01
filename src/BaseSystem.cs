@@ -14,15 +14,25 @@ namespace Fishworks.ECS
 
     protected World World;
     protected int SystemBitmask;
+    protected int ExclusionBitmask;
     protected Dictionary<uint, dynamic> Compositions = new Dictionary<uint, dynamic>();
 
-    protected BaseSystem(World world, params Type[] componentTypes)
+    protected BaseSystem(World world, Type[] componentTypes, Type[] componentsToExlcude = null, Type[] componentsOfInterestAtLeastOne = null)
     {
       ComponentsOfInterest = componentTypes;
       World = world;
+
       foreach (var componentType in componentTypes)
       {
-        SystemBitmask |= componentType.GetComponentBitmask();
+        SystemBitmask += componentType.GetComponentBitmask();
+      }
+
+      if (componentsToExlcude != null)
+      {
+        foreach (var componentType in componentsToExlcude)
+        {
+          ExclusionBitmask += componentType.GetComponentBitmask();
+        }
       }
 
       world.EntityAdded += OnEntityAdded;

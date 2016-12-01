@@ -160,6 +160,14 @@ namespace Fishworks.ECS
       return typeof(T).GetComponentBitmask();
     }
 
+    public int GetComponentBitmask(Type componentType)
+    {
+      if (!typeof (IComponent).IsAssignableFrom(componentType))
+        throw new Exception("Method should only be used with types assigned from IComponent");
+
+      return componentType.GetComponentBitmask();
+    }
+
     private void IncrementEntityTable()
     {
       Stopwatch incrementTime = new Stopwatch();

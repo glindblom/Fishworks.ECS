@@ -10,12 +10,12 @@ namespace Fishworks.ECS
   {
   }
 
-  public static class ComponentExtensions
+  internal static class ComponentExtensions
   {
     private static Dictionary<Type, int> bitmasks = new Dictionary<Type, int>();
     private static int componentIndex = 1;
 
-    public static int GetComponentBitmask(this Type type)
+    internal static int GetComponentBitmask(this Type type)
     {
       if (bitmasks.ContainsKey(type))
         return bitmasks[type];
