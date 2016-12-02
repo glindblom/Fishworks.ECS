@@ -5,6 +5,9 @@ using System.Linq;
 
 namespace Fishworks.ECS
 {
+  /// <summary>
+  /// Engine class of the ECS implementation. Handles entities, components and systems.
+  /// </summary>
   public class World
   {
     private const int NoComponentsBitmask = 0;
@@ -25,30 +28,32 @@ namespace Fishworks.ECS
     internal event EventHandler<EntityEventArgs> EntityChanged;
 
     /// <summary>
-    /// 
+    /// Returns the current size of the World's Entity Table. Note, this is
+    /// not the same thing as the number of entities currently being handled,
+    /// see <see cref="EntityCount">EntityCount</see>
     /// </summary>
     public int EntityTableSize => _entityTable.GetLength(EntityColumns);
 
     /// <summary>
-    /// 
+    /// Returns the current amount of active entities.
     /// </summary>
     public int EntityCount => GetEntityCount();
 
     /// <summary>
-    /// 
+    /// Creates a new instance of the World class.
     /// </summary>
     public World()
     {
       _entityInWorld = new Dictionary<uint, bool>();
       _componentIndices = new Dictionary<Type, int>();
       _activeSystems = new List<BaseSystem>();
-      InitializeEntityComponentTable();
+      InitializeEntityTable();
     }
 
     /// <summary>
-    /// 
+    /// Initializes the Entity Table
     /// </summary>
-    private void InitializeEntityComponentTable()
+    private void InitializeEntityTable()
     {
       var components = (from assembly in AppDomain.CurrentDomain.GetAssemblies()
                         from type in assembly.GetTypes()
@@ -72,9 +77,10 @@ namespace Fishworks.ECS
     }
 
     /// <summary>
-    /// 
+    /// Called to update the world. The function loops over all active systems
+    /// and updates them.
     /// </summary>
-    /// <param name="deltaTime"></param>
+    /// <param name="deltaTime">The current delta time (time between updates) of the simulation</param>
     public void Update(float deltaTime)
     {
       foreach (var system in _activeSystems)
@@ -85,9 +91,10 @@ namespace Fishworks.ECS
     }
 
     /// <summary>
-    /// 
+    /// Create a new entity. If the entity table is filled, the method automatically
+    /// increments its size.
     /// </summary>
-    /// <returns></returns>
+    /// <returns>The entity created, for chaining purposes</returns>
     public Entity CreateEntity()
     {
       for (uint i = 0; i < _entityTable.GetLength(EntityColumns); i++)
@@ -104,9 +111,9 @@ namespace Fishworks.ECS
     }
 
     /// <summary>
-    /// 
+    /// Marks the entity as added to the world, and invokes the EntityAdded event.
     /// </summary>
-    /// <param name="entityId"></param>
+    /// <param name="entityId">The ID of the entity to add</param>
     public void AddEntityToWorld(uint entityId)
     {
       _entityInWorld[entityId] = true;
@@ -114,17 +121,19 @@ namespace Fishworks.ECS
     }
 
     /// <summary>
-    /// 
+    /// Adds a system to the world's active systems list, causing the system
+    /// to automatically be updated when the world's Update method is called.
     /// </summary>
-    /// <param name="system"></param>
-    /// <returns></returns>
-    public BaseSystem AddSystemToWorld(BaseSystem system)
+    /// <param name="system">The system to add</param>
+    public void AddSystemToWorld(BaseSystem system)
     {
       _activeSystems.Add(system);
-
-      return system;
     }
 
+    /// <summary>
+    /// Removes a system from the world's active systems list.
+    /// </summary>
+    /// <param name="system">The system to remove</param>
     public void RemoveSystemFromWorld(BaseSystem system)
     {
       _activeSystems.Remove(system);
