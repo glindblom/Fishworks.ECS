@@ -1,9 +1,12 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
+using Fishworks.ECS.Extensions;
 
 namespace Fishworks.ECS
 {
@@ -16,27 +19,34 @@ namespace Fishworks.ECS
     private const int ComponentRows = 0;
     private const int EntityColumns = 1;
 
+    private const int MessagesToTakeFromQueueEachFrame = 10;
+
     private int numberOfComponents;
 
-    private Dictionary<uint, bool> entityInWorld;
-    private IComponent[,] entityComponentTable;
-    private Dictionary<Type, int> componentIndices;
+    private readonly Dictionary<uint, bool> entityInWorld;
+    private IComponent[,] entityTable;
+    private readonly Dictionary<Type, int> componentIndices;
 
-    private List<BaseSystem> activeSystems;
-    private List<BaseSystem> passiveSystems; 
+    private readonly List<BaseSystem> activeSystems;
+    private readonly List<BaseSystem> allSystems;
+
+    private readonly Queue<BaseMessage> messageQueue; 
 
     internal event EventHandler<EntityEventArgs> EntityAdded;
     internal event EventHandler<EntityEventArgs> EntityRemoved;
     internal event EventHandler<EntityEventArgs> EntityChanged;
 
-    public int EntityCount => entityComponentTable.GetLength(EntityColumns);
+    public event EventHandler<BaseMessage> MessageInQueue;
+
+    public int EntityCount => entityTable.GetLength(EntityColumns);
 
     public World()
     {
       entityInWorld = new Dictionary<uint, bool>();
       componentIndices = new Dictionary<Type, int>();
       activeSystems = new List<BaseSystem>();
-      passiveSystems = new List<BaseSystem>();
+      allSystems = new List<BaseSystem>();
+      messageQueue = new Queue<BaseMessage>();
       InitializeEntityComponentTable();
     }
 
@@ -55,7 +65,7 @@ namespace Fishworks.ECS
       }
 
       // set up entity-component table to contain 100 entities to start with
-      entityComponentTable = new IComponent[componentIndex, StartingNumberOfEntities];
+      entityTable = new IComponent[componentIndex, StartingNumberOfEntities];
       numberOfComponents = componentIndex;
 
       for (uint i = 0; i < StartingNumberOfEntities; i++)
@@ -72,11 +82,26 @@ namespace Fishworks.ECS
         system.Update(deltaTime);
         system.ProcessEntities();
       }
+
+      ProcessMessages();
+    }
+
+    private void ProcessMessages()
+    {
+      int queueCount = messageQueue.Count;
+
+      int messagesToTake = queueCount < MessagesToTakeFromQueueEachFrame ? queueCount : MessagesToTakeFromQueueEachFrame;
+
+      BaseMessage[] messages = messageQueue.Dequeue(messagesToTake);
+      foreach (var message in messages)
+      {
+        MessageInQueue?.Invoke(this, message);
+      }
     }
 
     public Entity CreateEntity()
     {
-      for (uint i = 0; i < entityComponentTable.GetLength(EntityColumns); i++)
+      for (uint i = 0; i < entityTable.GetLength(EntityColumns); i++)
       {
         var bitmask = GetEntityBitmask(i);
         if (bitmask == NoComponentsBitmask)
@@ -86,7 +111,7 @@ namespace Fishworks.ECS
       }
 
       IncrementEntityTable();
-      return new Entity((uint)entityComponentTable.GetLength(EntityColumns) - EntityTableIncrementSize, this);
+      return new Entity((uint)entityTable.GetLength(EntityColumns) - EntityTableIncrementSize, this);
     }
 
     public void AddEntityToWorld(uint entityId)
@@ -99,8 +124,8 @@ namespace Fishworks.ECS
     {
       if (active)
         activeSystems.Add(system);
-      else
-        passiveSystems.Add(system);
+
+      allSystems.Add(system);
 
       return system;
     }
@@ -108,21 +133,27 @@ namespace Fishworks.ECS
     public void AddComponent<T>(uint entityId) where T : IComponent, new() => AddComponent(entityId, new T());
     public void AddComponent(uint entityId, IComponent component)
     {
-      entityComponentTable[componentIndices[component.GetType()], entityId] = component;
+      entityTable[componentIndices[component.GetType()], entityId] = component;
       if (entityInWorld[entityId]) EntityAdded?.Invoke(this, new EntityEventArgs(entityId, GetEntityBitmask(entityId)));
     }
 
     public void RemoveComponent<T>(uint entityId) where T : IComponent, new() => RemoveComponent(entityId, new T());
     public void RemoveComponent(uint entityId, IComponent component)
     {
-      entityComponentTable[componentIndices[component.GetType()], entityId] = null;
+      entityTable[componentIndices[component.GetType()], entityId] = null;
       if (entityInWorld[entityId]) EntityChanged?.Invoke(this, new EntityEventArgs(entityId, GetEntityBitmask(entityId)));
     }
 
     public IComponent GetComponent<T>(uint entityId) where T : IComponent => GetComponent(entityId, typeof (T));
     public IComponent GetComponent(uint entityId, Type componentType)
     {
-      return entityComponentTable[componentIndices[componentType], entityId];
+      return entityTable[componentIndices[componentType], entityId];
+    }
+
+    public IComponent[] GetComponents(uint entityId)
+    {
+      IComponent[] result = entityTable.GetColumn((int) entityId).Where(component => component != null).ToArray();
+      return result;
     }
 
     public void DestroyEntity(uint entityId)
@@ -130,9 +161,9 @@ namespace Fishworks.ECS
       int entityBitmask = GetEntityBitmask(entityId);
       int componentIndex;
 
-      for (componentIndex = 0; componentIndex < entityComponentTable.GetLength(ComponentRows); componentIndex++)
+      for (componentIndex = 0; componentIndex < entityTable.GetLength(ComponentRows); componentIndex++)
       {
-        entityComponentTable[componentIndex, entityId] = null;
+        entityTable[componentIndex, entityId] = null;
       }
 
       entityInWorld[entityId] = false;
@@ -141,13 +172,13 @@ namespace Fishworks.ECS
 
     public int GetEntityBitmask(uint entityId)
     {
-      if (entityId > entityComponentTable.GetLength(EntityColumns))
+      if (entityId > entityTable.GetLength(EntityColumns))
         return -1;
 
       int bitmask = 0;
       for (int componentIndex = 0; componentIndex < numberOfComponents; componentIndex++)
       {
-        var component = entityComponentTable[componentIndex, entityId];
+        var component = entityTable[componentIndex, entityId];
         if (component == null) continue;
         bitmask |= component.GetType().GetComponentBitmask();
       }
@@ -168,13 +199,15 @@ namespace Fishworks.ECS
       return componentType.GetComponentBitmask();
     }
 
+    public void SendMessage(BaseMessage message)
+    {
+      messageQueue.Enqueue(message);
+    }
+
     private void IncrementEntityTable()
     {
-      Stopwatch incrementTime = new Stopwatch();
-      incrementTime.Start();
-
-      var rows = entityComponentTable.GetLength(ComponentRows);
-      var previousColumns = entityComponentTable.GetLength(EntityColumns);
+      var rows = entityTable.GetLength(ComponentRows);
+      var previousColumns = entityTable.GetLength(EntityColumns);
 
       IComponent[,] newTable = new IComponent[rows, previousColumns + EntityTableIncrementSize];
       
@@ -182,19 +215,16 @@ namespace Fishworks.ECS
       {
         for (int j = 0; j < previousColumns; j++)
         {
-          newTable[i, j] = entityComponentTable[i, j];
+          newTable[i, j] = entityTable[i, j];
         }
       }
 
-      entityComponentTable = newTable;
+      entityTable = newTable;
 
       for (int i = previousColumns; i < previousColumns + EntityTableIncrementSize; i++)
       {
         entityInWorld.Add((uint) i, false);
       }
-
-      incrementTime.Stop();
-      System.Diagnostics.Trace.WriteLine(string.Format("Increment table size took {0} ms, {1} ticks", incrementTime.ElapsedMilliseconds, incrementTime.ElapsedTicks));
     }
   }
 

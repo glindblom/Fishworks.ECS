@@ -49,6 +49,21 @@ namespace Fishworks.ECS.Test
 
       Assert.AreEqual(2, system.EntityCount);
     }
+
+    [TestMethod]
+    public void SystemCompositionsWorkingAsIntended()
+    {
+      var world = new World();
+      var system = new TestSystem(world);
+
+      var entity1 = world.CreateEntity()
+                    .AddComponent<TestComponent1>()
+                    .AddComponent<TestComponent2>()
+                    .AddToWorld();
+
+      Assert.IsNotNull(system.GetComposition.TestComponent1);
+      Assert.IsNotNull(system.GetComposition.TestComponent2);
+    }
   }
 
   public class TestComponent3 : IComponent
@@ -86,5 +101,7 @@ namespace Fishworks.ECS.Test
     {
       throw new NotImplementedException();
     }
+
+    public dynamic GetComposition => Compositions.Values.ElementAt(0);
   }
 }

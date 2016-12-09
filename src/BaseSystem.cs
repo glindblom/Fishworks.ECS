@@ -4,6 +4,7 @@ using System.Dynamic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Fishworks.ECS.Extensions;
 
 namespace Fishworks.ECS
 {
@@ -16,20 +17,24 @@ namespace Fishworks.ECS
     protected int SystemBitmask;
     protected int ExclusionBitmask;
     protected Dictionary<uint, dynamic> Compositions = new Dictionary<uint, dynamic>();
+    private List<uint> entitiesToRemove = new List<uint>();
+    private List<dynamic> entitiesToAdd = new List<dynamic>(); 
 
-    protected BaseSystem(World world, Type[] componentTypes, Type[] componentsToExlcude = null, Type[] componentsOfInterestAtLeastOne = null)
+    private bool processing;
+
+    protected BaseSystem(World world, Type[] componentsOfInterest, Type[] componentsToExclude = null)
     {
-      ComponentsOfInterest = componentTypes;
+      ComponentsOfInterest = componentsOfInterest;
       World = world;
 
-      foreach (var componentType in componentTypes)
+      foreach (var componentType in componentsOfInterest)
       {
         SystemBitmask += componentType.GetComponentBitmask();
       }
 
-      if (componentsToExlcude != null)
+      if (componentsToExclude != null)
       {
-        foreach (var componentType in componentsToExlcude)
+        foreach (var componentType in componentsToExclude)
         {
           ExclusionBitmask += componentType.GetComponentBitmask();
         }
@@ -41,20 +46,42 @@ namespace Fishworks.ECS
     }
 
     public abstract void Update(float deltaTime);
-    public abstract void ProcessEntity(dynamic entityComposition);
-
     public virtual void ProcessEntities()
     {
-      foreach (var composition in Compositions)
+      processing = true;
+      foreach (var composition in Compositions.Values)
       {
         ProcessEntity(composition);
       }
+      processing = false;
+
+      if (entitiesToRemove.Count > 0 || entitiesToAdd.Count > 0)
+        UpdateLists();
     }
+
+    private void UpdateLists()
+    {
+      foreach (uint entityId in entitiesToRemove)
+        Compositions.Remove(entityId);
+
+      foreach (dynamic entityComposition in entitiesToAdd)
+        Compositions.Add(entityComposition.EntityId, entityComposition);
+
+      entitiesToRemove.Clear();
+      entitiesToAdd.Clear();
+    }
+
+    public abstract void ProcessEntity(dynamic entityComposition);
 
     public virtual void OnEntityAdded(object sender, EntityEventArgs eventArgs)
     {
       if ((SystemBitmask & eventArgs.EntityBitmask) == SystemBitmask)
       {
+        if (processing)
+        {
+          entitiesToAdd.Add(CreateComposition(eventArgs.EntityId));
+          return;
+        }
         Compositions.Add(eventArgs.EntityId, CreateComposition(eventArgs.EntityId));
       }
     }
@@ -63,6 +90,11 @@ namespace Fishworks.ECS
     {
       if ((SystemBitmask & eventArgs.EntityBitmask) == SystemBitmask)
       {
+        if (processing)
+        {
+          entitiesToRemove.Add(eventArgs.EntityId);
+          return;
+        }
         Compositions.Remove(eventArgs.EntityId);
       }
     }
@@ -75,11 +107,21 @@ namespace Fishworks.ECS
       // The entity is registered, and is no longer of interest, remove the composition
       if (contains && !ofInterest)
       {
+        if (processing)
+        {
+          entitiesToRemove.Add(eventArgs.EntityId);
+          return;
+        }
         Compositions.Remove(eventArgs.EntityId);
       }
       // The entity is not registered, but is of interest, add it
       else if (!contains && ofInterest)
       {
+        if (processing)
+        {
+          entitiesToAdd.Add(CreateComposition(eventArgs.EntityId));
+          return;
+        }
         Compositions.Add(eventArgs.EntityId, CreateComposition(eventArgs.EntityId));
       }
     }
@@ -87,13 +129,11 @@ namespace Fishworks.ECS
     private dynamic CreateComposition(uint entityId)
     {
       dynamic composition = new ExpandoObject();
-      IDictionary<string, object> compositionProperties = composition;
 
-      compositionProperties.Add("EntityId", entityId);
-
+      (composition as ExpandoObject).AddProperty("EntityId", entityId);
       foreach (var componentType in ComponentsOfInterest)
       {
-        compositionProperties.Add(componentType.Name, World.GetComponent(entityId, componentType));
+        (composition as ExpandoObject).AddProperty(componentType.Name, World.GetComponent(entityId, componentType));
       }
 
       return composition;

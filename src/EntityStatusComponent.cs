@@ -10,11 +10,9 @@ namespace Fishworks.ECS
   {
     public bool Alive { get; set; }
 
-
-    public EntityStatusComponent() : this(true) { }
-    public EntityStatusComponent(bool alive = true)
+    public EntityStatusComponent()
     {
-      Alive = alive;
+      Alive = true;
     }
   }
 }
