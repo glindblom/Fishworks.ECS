@@ -10,7 +10,7 @@ Fishworks.ECS is a very simple, pooled, implementation of the ECS pattern, with 
 
 Controlling class for the ECS pattern. Handles creation and pooling of entities, component fetching/creation, and more. This would be the entry point for using it in your own game.
 
-...
+```
 class Game()
 {
   public void Initialize()
@@ -31,13 +31,13 @@ class Game()
     }
   }
 }
-...
+```
 
 ### BaseSystem.cs
 
 Controlling class for entity compositions. This is meant to be extended for actual implementations. Uses a dynamically created composition object based upon the components marked as of interest to the system.
 
-...
+```
 public MovementSystem : BaseSystem
 {
   private float deltaTime;
@@ -59,13 +59,13 @@ public MovementSystem : BaseSystem
     transform.Position += movement.Velocity * movement.MaxVelocity * deltaTime;
   }
 }
-...
+```
 
 ### IComponent.cs
 
 Flagging interface meant to mark an object as a component. Components are purely containers for data, as defined by the ECS pattern. Any actual logic is always placed in systems.
 
-...
+```
 public Transform : IComponent
 {
   public Vector2 Position { get; set; }
@@ -77,4 +77,4 @@ public Movement : IComponent
   public Vector2 Velocity { get; set; }
   public float MaxVelocity { get; set; }
 }
-...
+```
