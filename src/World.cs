@@ -201,8 +201,12 @@ namespace Fishworks.ECS
 
     public void SendMessage(BaseMessage message)
     {
-      messageQueue.Enqueue(message);
-      hasMessages = true;
+      lock (messageQueue)
+      {
+        messageQueue.Enqueue(message);
+      }
+      if (hasMessages == false)
+        hasMessages = true;
     }
 
     private void IncrementEntityTable()
@@ -239,7 +243,11 @@ namespace Fishworks.ECS
             ? MessagesToTakeFromQueueEachFrame
             : messageCount;
 
-          BaseMessage[] messages = messageQueue.Dequeue(messagesToTake);
+          BaseMessage[] messages;
+          lock (messageQueue)
+          {
+            messages = messageQueue.Dequeue(messagesToTake);
+          }
           foreach (var message in messages)
           {
             MessageSent?.Invoke(this, message);

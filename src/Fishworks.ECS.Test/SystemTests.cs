@@ -76,15 +76,16 @@ namespace Fishworks.ECS.Test
     [TestMethod]
     public void SystemSendingMessagesStressTest()
     {
+      int expectedMessages = 500;
       var world = new World();
       var system = new TestSystem(world);
 
-      for (int i = 0; i < 625; i++)
+      for (int i = 0; i < expectedMessages; i++)
         world.SendMessage(new TestMessage());
 
-      Thread.Sleep(532);
+      Thread.Sleep(1032);
 
-      Assert.AreEqual(system.MessagesReceived, 625);
+      Assert.AreEqual(system.MessagesReceived, expectedMessages);
     }
   }
 
