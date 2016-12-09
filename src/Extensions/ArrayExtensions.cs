@@ -20,5 +20,18 @@ namespace Fishworks.ECS.Extensions
 
       return result;
     }
+
+    public static T[] GetRow<T>(this T[,] array, int rowIndex)
+    {
+      int length = array.GetLength(0);
+      T[] result = new T[length];
+
+      for (int i = 0; i < length; i++)
+      {
+        result[i] = array[rowIndex, i];
+      }
+
+      return result;
+    }
   }
 }
