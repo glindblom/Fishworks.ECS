@@ -61,6 +61,22 @@ public MovementSystem : BaseSystem
 }
 ```
 
+Behind the scenes the BaseSystem uses bitmasks to determine if an entity is of interest to the system. If the entity is of interest a local composition is built based upon those components:
+```
+private dynamic CreateComposition(uint entityId)
+{
+  dynamic composition = new ExpandoObject();
+
+  (composition as ExpandoObject).AddProperty("EntityId", entityId);
+  foreach (var componentType in ComponentsOfInterest)
+  {
+    (composition as ExpandoObject).AddProperty(componentType.Name, World.GetComponent(entityId, componentType));
+  }
+
+  return composition;
+}
+```
+
 ### IComponent.cs
 
 Flagging interface meant to mark an object as a component. Components are purely containers for data, as defined by the ECS pattern. Any actual logic is always placed in systems.
