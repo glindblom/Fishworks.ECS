@@ -1,9 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Dynamic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using Fishworks.ECS.Extensions;
 
 namespace Fishworks.ECS
@@ -17,8 +14,8 @@ namespace Fishworks.ECS
     protected int SystemBitmask;
     protected int ExclusionBitmask;
     protected Dictionary<uint, dynamic> Compositions = new Dictionary<uint, dynamic>();
-    private List<uint> entitiesToRemove = new List<uint>();
-    private List<dynamic> entitiesToAdd = new List<dynamic>(); 
+    private readonly List<uint> entitiesToRemove = new List<uint>();
+    private readonly List<dynamic> entitiesToAdd = new List<dynamic>(); 
 
     private bool processing;
 

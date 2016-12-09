@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace Fishworks.ECS.Extensions
+﻿namespace Fishworks.ECS.Extensions
 {
   internal static class ArrayExtensions
   {

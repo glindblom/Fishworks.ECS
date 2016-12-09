@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace Fishworks.ECS
+﻿namespace Fishworks.ECS
 {
   /// <summary>
   /// Container class that just represents an Id for the entity world to use.
