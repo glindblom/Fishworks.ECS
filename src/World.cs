@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using Fishworks.ECS.Extensions;
 
 namespace Fishworks.ECS
@@ -25,13 +26,15 @@ namespace Fishworks.ECS
     private readonly List<BaseSystem> activeSystems;
     private readonly List<BaseSystem> allSystems;
 
-    private readonly Queue<BaseMessage> messageQueue; 
+    private readonly Queue<BaseMessage> messageQueue;
+    private Thread messageHandlerThread;
+    private bool hasMessages;
 
     internal event EventHandler<EntityEventArgs> EntityAdded;
     internal event EventHandler<EntityEventArgs> EntityRemoved;
     internal event EventHandler<EntityEventArgs> EntityChanged;
 
-    public event EventHandler<BaseMessage> MessageInQueue;
+    public event EventHandler<BaseMessage> MessageSent;
 
     public int EntityCount => entityTable.GetLength(EntityColumns);
 
@@ -43,13 +46,16 @@ namespace Fishworks.ECS
       allSystems = new List<BaseSystem>();
       messageQueue = new Queue<BaseMessage>();
       InitializeEntityComponentTable();
+
+      messageHandlerThread = new Thread(HandleMessages);
+      messageHandlerThread.Start();
     }
 
     private void InitializeEntityComponentTable()
     {
       var components = (from assembly in AppDomain.CurrentDomain.GetAssemblies()
                         from type in assembly.GetTypes()
-                        where typeof (IComponent).IsAssignableFrom(type) && !type.IsInterface
+                        where typeof(IComponent).IsAssignableFrom(type) && !type.IsInterface
                         select type).ToArray();
 
       int componentIndex = 0;
@@ -59,7 +65,6 @@ namespace Fishworks.ECS
         componentIndex++;
       }
 
-      // set up entity-component table to contain 100 entities to start with
       entityTable = new IComponent[componentIndex, StartingNumberOfEntities];
       numberOfComponents = componentIndex;
 
@@ -90,7 +95,7 @@ namespace Fishworks.ECS
       BaseMessage[] messages = messageQueue.Dequeue(messagesToTake);
       foreach (var message in messages)
       {
-        MessageInQueue?.Invoke(this, message);
+        MessageSent?.Invoke(this, message);
       }
     }
 
@@ -139,7 +144,7 @@ namespace Fishworks.ECS
       if (entityInWorld[entityId]) EntityChanged?.Invoke(this, new EntityEventArgs(entityId, GetEntityBitmask(entityId)));
     }
 
-    public IComponent GetComponent<T>(uint entityId) where T : IComponent => GetComponent(entityId, typeof (T));
+    public IComponent GetComponent<T>(uint entityId) where T : IComponent => GetComponent(entityId, typeof(T));
     public IComponent GetComponent(uint entityId, Type componentType)
     {
       return entityTable[componentIndices[componentType], entityId];
@@ -147,7 +152,7 @@ namespace Fishworks.ECS
 
     public IComponent[] GetComponents(uint entityId)
     {
-      IComponent[] result = entityTable.GetColumn((int) entityId).Where(component => component != null).ToArray();
+      IComponent[] result = entityTable.GetColumn((int)entityId).Where(component => component != null).ToArray();
       return result;
     }
 
@@ -188,7 +193,7 @@ namespace Fishworks.ECS
 
     public int GetComponentBitmask(Type componentType)
     {
-      if (!typeof (IComponent).IsAssignableFrom(componentType))
+      if (!typeof(IComponent).IsAssignableFrom(componentType))
         throw new Exception("Method should only be used with types assigned from IComponent");
 
       return componentType.GetComponentBitmask();
@@ -197,6 +202,7 @@ namespace Fishworks.ECS
     public void SendMessage(BaseMessage message)
     {
       messageQueue.Enqueue(message);
+      hasMessages = true;
     }
 
     private void IncrementEntityTable()
@@ -205,7 +211,7 @@ namespace Fishworks.ECS
       var previousColumns = entityTable.GetLength(EntityColumns);
 
       IComponent[,] newTable = new IComponent[rows, previousColumns + EntityTableIncrementSize];
-      
+
       for (int i = 0; i < rows; i++)
       {
         for (int j = 0; j < previousColumns; j++)
@@ -218,21 +224,31 @@ namespace Fishworks.ECS
 
       for (int i = previousColumns; i < previousColumns + EntityTableIncrementSize; i++)
       {
-        entityInWorld.Add((uint) i, false);
+        entityInWorld.Add((uint)i, false);
+      }
+    }
+
+    private void HandleMessages()
+    {
+      while (Thread.CurrentThread.IsAlive)
+      {
+        if (hasMessages)
+        {
+          int messageCount = messageQueue.Count;
+          int messagesToTake = messageCount > MessagesToTakeFromQueueEachFrame
+            ? MessagesToTakeFromQueueEachFrame
+            : messageCount;
+
+          BaseMessage[] messages = messageQueue.Dequeue(messagesToTake);
+          foreach (var message in messages)
+          {
+            MessageSent?.Invoke(this, message);
+          }
+
+          hasMessages = messageQueue.Count > 0;
+        }
+        Thread.Sleep(16);
       }
     }
   }
-
-  public class EntityEventArgs : EventArgs
-  {
-    public EntityEventArgs(uint entityId, int entityBitmask)
-    {
-      EntityId = entityId;
-      EntityBitmask = entityBitmask;
-    }
-
-    public uint EntityId { get; set; }
-    public int EntityBitmask { get; set; }
-  }
-
 }

@@ -101,7 +101,6 @@ namespace Fishworks.ECS
       bool contains = Compositions.ContainsKey(eventArgs.EntityId);
       bool ofInterest = ((SystemBitmask & eventArgs.EntityBitmask) == SystemBitmask);
 
-      // The entity is registered, and is no longer of interest, remove the composition
       if (contains && !ofInterest)
       {
         if (processing)
@@ -111,7 +110,6 @@ namespace Fishworks.ECS
         }
         Compositions.Remove(eventArgs.EntityId);
       }
-      // The entity is not registered, but is of interest, add it
       else if (!contains && ofInterest)
       {
         if (processing)

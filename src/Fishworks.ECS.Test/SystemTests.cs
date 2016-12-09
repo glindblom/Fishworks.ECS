@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Linq;
+using System.Threading;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Fishworks.ECS.Test
@@ -60,6 +61,39 @@ namespace Fishworks.ECS.Test
       Assert.IsNotNull(system.GetComposition.TestComponent1);
       Assert.IsNotNull(system.GetComposition.TestComponent2);
     }
+
+    [TestMethod]
+    public void SystemSendingMessages()
+    {
+      var world = new World();
+      var system = new TestSystem(world);
+
+      world.SendMessage(new TestMessage());
+      Thread.Sleep(32);
+      Assert.IsTrue(system.GotMessage);
+    }
+
+    [TestMethod]
+    public void SystemSendingMessagesStressTest()
+    {
+      var world = new World();
+      var system = new TestSystem(world);
+
+      for (int i = 0; i < 625; i++)
+        world.SendMessage(new TestMessage());
+
+      Thread.Sleep(532);
+
+      Assert.AreEqual(system.MessagesReceived, 625);
+    }
+  }
+
+  public class TestMessage : BaseMessage
+  {
+    public TestMessage()
+    {
+      MessageType = "TestMessage";
+    }
   }
 
   public class TestComponent3 : IComponent
@@ -71,7 +105,14 @@ namespace Fishworks.ECS.Test
   {
     public TestSystem(World world) : base(world, new Type[] { typeof(TestComponent1), typeof(TestComponent2) })
     {
-
+      world.MessageSent += (sender, message) =>
+      {
+        if (!message.Aborted && message.MessageType == "TestMessage")
+        {
+          GotMessage = true;
+          MessagesReceived++;
+        }
+      };
     }
 
     public bool InterestedIn(Type[] componentTypes)
@@ -99,5 +140,7 @@ namespace Fishworks.ECS.Test
     }
 
     public dynamic GetComposition => Compositions.Values.ElementAt(0);
+    public bool GotMessage { get; set; }
+    public int MessagesReceived { get; set; }
   }
 }

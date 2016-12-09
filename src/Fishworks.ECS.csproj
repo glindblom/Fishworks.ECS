@@ -43,8 +43,10 @@
     <Compile Include="BaseMessage.cs" />
     <Compile Include="BaseSystem.cs" />
     <Compile Include="Entity.cs" />
+    <Compile Include="EntityEventArgs.cs" />
     <Compile Include="EntityStatusComponent.cs" />
     <Compile Include="Extensions\ArrayExtensions.cs" />
+    <Compile Include="Extensions\ComponentExtensions.cs" />
     <Compile Include="Extensions\DynamicExtensions.cs" />
     <Compile Include="Extensions\QueueExtensions.cs" />
     <Compile Include="IComponent.cs" />
