@@ -83,7 +83,7 @@ namespace Fishworks.ECS.Test
       for (int i = 0; i < expectedMessages; i++)
         world.SendMessage(new TestMessage());
 
-      Thread.Sleep(1032);
+      Thread.Sleep(1000);
 
       Assert.AreEqual(system.MessagesReceived, expectedMessages);
     }
